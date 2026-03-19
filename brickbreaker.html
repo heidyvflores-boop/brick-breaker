@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BRICK SMASH</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Orbitron:wght@400;700;900&display=swap');
+
+  :root {
+    --neon-cyan: #00f5ff;
+    --neon-pink: #ff006e;
+    --neon-yellow: #ffbe0b;
+    --neon-green: #06d6a0;
+    --dark: #050510;
+    --darker: #020208;
+    --panel: rgba(0, 245, 255, 0.05);
+    --border: rgba(0, 245, 255, 0.2);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--dark);
+    color: var(--neon-cyan);
+    font-family: 'Press Start 2P', monospace;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    overflow: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: 
+      repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,245,255,0.015) 2px, rgba(0,245,255,0.015) 4px),
+      repeating-linear-gradient(90deg, transparent, transparent 2px, rgba(0,245,255,0.015) 2px, rgba(0,245,255,0.015) 4px);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .wrapper {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+  }
+
+  h1 {
+    font-family: 'Orbitron', sans-serif;
+    font-weight: 900;
+    font-size: clamp(1.2rem, 4vw, 2rem);
+    letter-spacing: 0.3em;
+    color: var(--neon-cyan);
+    text-shadow: 0 0 10px var(--neon-cyan), 0 0 30px var(--neon-cyan), 0 0 60px rgba(0,245,255,0.4);
+    animation: flicker 4s infinite;
+  }
+
+  @keyframes flicker {
+    0%, 95%, 100% { opacity: 1; }
+    96% { opacity: 0.8; }
+    97% { opacity: 1; }
+    98% { opacity: 0.6; }
+    99% { opacity: 1; }
+  }
+
+  .hud {
+    display: flex;
+    gap: 40px;
+    font-size: 0.55rem;
+    color: var(--neon-cyan);
+  }
+
+  .hud-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .hud-label {
+    opacity: 0.5;
+    letter-spacing: 0.15em;
+  }
+
+  .hud-value {
+    font-size: 0.9rem;
+    color: var(--neon-yellow);
+    text-shadow: 0 0 10px var(--neon-yellow);
+  }
+
+  .game-container {
+    position: relative;
+    border: 1px solid var(--border);
+    box-shadow: 
+      0 0 0 1px rgba(0,245,255,0.1),
+      0 0 30px rgba(0,245,255,0.1),
+      inset 0 0 60px rgba(0,0,0,0.5);
+    background: var(--darker);
+    overflow: hidden;
+  }
+
+  .game-container::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--neon-cyan), transparent);
+    box-shadow: 0 0 10px var(--neon-cyan);
+  }
+
+  canvas { display: block; }
+
+  .overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    background: rgba(2, 2, 8, 0.85);
+    backdrop-filter: blur(4px);
+  }
+
+  .overlay h2 {
+    font-family: 'Orbitron', sans-serif;
+    font-size: clamp(1rem, 3vw, 1.6rem);
+    text-align: center;
+    letter-spacing: 0.2em;
+    line-height: 1.5;
+  }
+
+  .overlay.win h2 { color: var(--neon-green); text-shadow: 0 0 20px var(--neon-green); }
+  .overlay.lose h2 { color: var(--neon-pink); text-shadow: 0 0 20px var(--neon-pink); }
+  .overlay.start h2 { color: var(--neon-cyan); text-shadow: 0 0 20px var(--neon-cyan); }
+
+  .btn {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 0.6rem;
+    padding: 12px 24px;
+    background: transparent;
+    border: 1px solid var(--neon-cyan);
+    color: var(--neon-cyan);
+    cursor: pointer;
+    letter-spacing: 0.1em;
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .btn::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--neon-cyan);
+    transform: translateX(-100%);
+    transition: transform 0.2s;
+    z-index: -1;
+  }
+
+  .btn:hover { color: var(--dark); box-shadow: 0 0 20px var(--neon-cyan); }
+  .btn:hover::before { transform: translateX(0); }
+
+  .controls-hint {
+    font-size: 0.4rem;
+    opacity: 0.4;
+    letter-spacing: 0.1em;
+    text-align: center;
+    line-height: 2;
+  }
+
+  .lives {
+    display: flex;
+    gap: 8px;
+  }
+
+  .life-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: var(--neon-pink);
+    box-shadow: 0 0 8px var(--neon-pink);
+  }
+
+  .life-dot.empty {
+    background: rgba(255, 0, 110, 0.15);
+    box-shadow: none;
+    border: 1px solid rgba(255, 0, 110, 0.3);
+  }
+</style>
+</head>
+<body>
+<div class="wrapper">
+  <h1>⬡ BRICK SMASH ⬡</h1>
+
+  <div class="hud">
+    <div class="hud-item">
+      <span class="hud-label">SCORE</span>
+      <span class="hud-value" id="score">0</span>
+    </div>
+    <div class="hud-item">
+      <span class="hud-label">LEVEL</span>
+      <span class="hud-value" id="level">1</span>
+    </div>
+    <div class="hud-item">
+      <span class="hud-label">LIVES</span>
+      <div class="lives" id="lives">
+        <div class="life-dot"></div>
+        <div class="life-dot"></div>
+        <div class="life-dot"></div>
+      </div>
+    </div>
+    <div class="hud-item">
+      <span class="hud-label">BEST</span>
+      <span class="hud-value" id="best">0</span>
+    </div>
+  </div>
+
+  <div class="game-container" id="gameContainer">
+    <canvas id="gameCanvas"></canvas>
+    <div class="overlay start" id="overlay">
+      <h2>BRICK<br>SMASH</h2>
+      <button class="btn" id="startBtn">START GAME</button>
+      <div class="controls-hint">
+        MOUSE / TOUCH — move paddle<br>
+        CLICK / TAP — launch ball
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const overlay = document.getElementById('overlay');
+const startBtn = document.getElementById('startBtn');
+const scoreEl = document.getElementById('score');
+const levelEl = document.getElementById('level');
+const livesEl = document.getElementById('lives');
+const bestEl = document.getElementById('best');
+
+// Responsive sizing
+function resize() {
+  const maxW = Math.min(window.innerWidth - 40, 520);
+  const maxH = Math.min(window.innerHeight - 200, 600);
+  const aspect = 520 / 600;
+  let w = maxW, h = maxW / aspect;
+  if (h > maxH) { h = maxH; w = h * aspect; }
+  canvas.width = Math.floor(w);
+  canvas.height = Math.floor(h);
+  document.getElementById('gameContainer').style.width = canvas.width + 'px';
+  document.getElementById('gameContainer').style.height = canvas.height + 'px';
+  if (state !== 'idle') initGame(false);
+}
+
+// Colors
+const BRICK_COLORS = [
+  { fill: '#ff006e', glow: '#ff006e' },
+  { fill: '#ff4d4d', glow: '#ff4d4d' },
+  { fill: '#ffbe0b', glow: '#ffbe0b' },
+  { fill: '#06d6a0', glow: '#06d6a0' },
+  { fill: '#00f5ff', glow: '#00f5ff' },
+  { fill: '#8338ec', glow: '#8338ec' },
+];
+
+let state = 'idle';
+let score = 0, level = 1, lives = 3, best = 0;
+let paddle, ball, bricks, particles;
+let animId;
+let launched = false;
+
+function Paddle() {
+  const W = canvas.width, H = canvas.height;
+  return {
+    w: W * 0.18, h: H * 0.022,
+    x: W / 2, y: H * 0.92,
+    speed: 0,
+    draw() {
+      const grad = ctx.createLinearGradient(this.x - this.w/2, 0, this.x + this.w/2, 0);
+      grad.addColorStop(0, 'rgba(0,245,255,0)');
+      grad.addColorStop(0.3, '#00f5ff');
+      grad.addColorStop(0.5, '#ffffff');
+      grad.addColorStop(0.7, '#00f5ff');
+      grad.addColorStop(1, 'rgba(0,245,255,0)');
+      ctx.save();
+      ctx.shadowColor = '#00f5ff';
+      ctx.shadowBlur = 18;
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.roundRect(this.x - this.w/2, this.y - this.h/2, this.w, this.h, this.h/2);
+      ctx.fill();
+      ctx.restore();
+    }
+  };
+}
+
+function Ball() {
+  const W = canvas.width, H = canvas.height;
+  const r = Math.max(5, W * 0.012);
+  const spd = (W + H) * 0.003 * (1 + (level-1)*0.15);
+  return {
+    x: W/2, y: paddle.y - paddle.h - r,
+    r, vx: 0, vy: 0,
+    speed: spd,
+    draw() {
+      ctx.save();
+      ctx.shadowColor = '#ffbe0b';
+      ctx.shadowBlur = 20;
+      const grad = ctx.createRadialGradient(this.x - this.r*0.3, this.y - this.r*0.3, this.r*0.1, this.x, this.y, this.r);
+      grad.addColorStop(0, '#ffffff');
+      grad.addColorStop(0.4, '#ffbe0b');
+      grad.addColorStop(1, '#ff6b00');
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, this.r, 0, Math.PI*2);
+      ctx.fill();
+      ctx.restore();
+    },
+    launch() {
+      const angle = -Math.PI/2 + (Math.random()-0.5)*0.8;
+      this.vx = Math.cos(angle) * this.speed;
+      this.vy = Math.sin(angle) * this.speed;
+    },
+    update() {
+      if (!launched) {
+        this.x = paddle.x;
+        this.y = paddle.y - paddle.h - this.r;
+        return;
+      }
+      this.x += this.vx;
+      this.y += this.vy;
+      if (this.x - this.r < 0) { this.x = this.r; this.vx = Math.abs(this.vx); }
+      if (this.x + this.r > canvas.width) { this.x = canvas.width - this.r; this.vx = -Math.abs(this.vx); }
+      if (this.y - this.r < 0) { this.y = this.r; this.vy = Math.abs(this.vy); }
+
+      // Paddle collision
+      if (this.vy > 0 &&
+          this.y + this.r > paddle.y - paddle.h/2 &&
+          this.y - this.r < paddle.y + paddle.h/2 &&
+          this.x > paddle.x - paddle.w/2 &&
+          this.x < paddle.x + paddle.w/2) {
+        this.y = paddle.y - paddle.h/2 - this.r;
+        const hit = (this.x - paddle.x) / (paddle.w/2);
+        const angle = hit * (Math.PI/3);
+        const spd = Math.hypot(this.vx, this.vy);
+        this.vx = Math.sin(angle) * spd;
+        this.vy = -Math.abs(Math.cos(angle) * spd);
+        spawnParticles(this.x, this.y, '#00f5ff', 5);
+      }
+
+      // Out of bounds
+      if (this.y - this.r > canvas.height) return 'dead';
+    }
+  };
+}
+
+function makeBricks() {
+  const W = canvas.width, H = canvas.height;
+  const cols = 10, rows = Math.min(4 + level, 8);
+  const padX = W * 0.04, padY = H * 0.08;
+  const bw = (W - padX*2) / cols - 4;
+  const bh = H * 0.035;
+  const list = [];
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const color = BRICK_COLORS[r % BRICK_COLORS.length];
+      const hp = r < 2 ? 1 : (r < 5 ? 2 : 3);
+      list.push({
+        x: padX + c*(bw+4) + bw/2,
+        y: padY + r*(bh+4) + bh/2,
+        w: bw, h: bh,
+        hp, maxHp: hp,
+        color, alive: true,
+        draw() {
+          if (!this.alive) return;
+          const alpha = 0.4 + 0.6*(this.hp/this.maxHp);
+          ctx.save();
+          ctx.globalAlpha = alpha;
+          ctx.shadowColor = this.color.glow;
+          ctx.shadowBlur = 10;
+          const grad = ctx.createLinearGradient(this.x-this.w/2, this.y-this.h/2, this.x-this.w/2, this.y+this.h/2);
+          grad.addColorStop(0, this.color.fill + 'cc');
+          grad.addColorStop(1, this.color.fill + '66');
+          ctx.fillStyle = grad;
+          ctx.beginPath();
+          ctx.roundRect(this.x-this.w/2, this.y-this.h/2, this.w, this.h, 3);
+          ctx.fill();
+          // crack lines for damaged bricks
+          if (this.hp < this.maxHp) {
+            ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(this.x - this.w*0.2, this.y - this.h*0.3);
+            ctx.lineTo(this.x + this.w*0.1, this.y + this.h*0.1);
+            ctx.lineTo(this.x + this.w*0.3, this.y + this.h*0.4);
+            ctx.stroke();
+          }
+          if (this.maxHp > 1) {
+            ctx.globalAlpha = 0.6;
+            ctx.fillStyle = '#fff';
+            ctx.font = `bold ${this.h*0.45}px Orbitron, monospace`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(this.hp, this.x, this.y);
+          }
+          ctx.restore();
+        }
+      });
+    }
+  }
+  return list;
+}
+
+function spawnParticles(x, y, color, count=12) {
+  for (let i = 0; i < count; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const spd = 1 + Math.random() * 3;
+    particles.push({
+      x, y,
+      vx: Math.cos(angle)*spd, vy: Math.sin(angle)*spd,
+      life: 1, decay: 0.04 + Math.random()*0.04,
+      size: 2 + Math.random()*3,
+      color
+    });
+  }
+}
+
+function updateParticles() {
+  for (let i = particles.length-1; i >= 0; i--) {
+    const p = particles[i];
+    p.x += p.vx; p.y += p.vy;
+    p.vy += 0.1;
+    p.life -= p.decay;
+    if (p.life <= 0) { particles.splice(i, 1); continue; }
+    ctx.save();
+    ctx.globalAlpha = p.life;
+    ctx.shadowColor = p.color;
+    ctx.shadowBlur = 6;
+    ctx.fillStyle = p.color;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI*2);
+    ctx.fill();
+    ctx.restore();
+  }
+}
+
+function checkBrickCollision() {
+  for (const b of bricks) {
+    if (!b.alive) continue;
+    const bLeft = b.x - b.w/2, bRight = b.x + b.w/2;
+    const bTop = b.y - b.h/2, bBot = b.y + b.h/2;
+    const bx = ball.x, by = ball.y, br = ball.r;
+    if (bx + br < bLeft || bx - br > bRight || by + br < bTop || by - br > bBot) continue;
+
+    // which side?
+    const overlapLeft = bx + br - bLeft;
+    const overlapRight = bRight - (bx - br);
+    const overlapTop = by + br - bTop;
+    const overlapBot = bBot - (by - br);
+    const minOverlap = Math.min(overlapLeft, overlapRight, overlapTop, overlapBot);
+
+    if (minOverlap === overlapLeft || minOverlap === overlapRight) ball.vx *= -1;
+    else ball.vy *= -1;
+
+    b.hp--;
+    if (b.hp <= 0) {
+      b.alive = false;
+      score += 10 * level;
+      scoreEl.textContent = score;
+      spawnParticles(b.x, b.y, b.color.fill, 16);
+    } else {
+      spawnParticles(b.x, b.y, b.color.fill, 4);
+    }
+    break;
+  }
+}
+
+function updateLivesUI() {
+  livesEl.innerHTML = '';
+  for (let i = 0; i < 3; i++) {
+    const d = document.createElement('div');
+    d.className = 'life-dot' + (i >= lives ? ' empty' : '');
+    livesEl.appendChild(d);
+  }
+}
+
+function initGame(reset=true) {
+  if (reset) { score = 0; level = 1; lives = 3; scoreEl.textContent = 0; levelEl.textContent = 1; }
+  launched = false;
+  particles = [];
+  paddle = Paddle();
+  ball = Ball();
+  bricks = makeBricks();
+  updateLivesUI();
+}
+
+function showOverlay(type, msg) {
+  overlay.className = 'overlay ' + type;
+  overlay.querySelector('h2').innerHTML = msg;
+  startBtn.textContent = type === 'start' ? 'START GAME' : 'PLAY AGAIN';
+  overlay.style.display = 'flex';
+}
+
+function hideOverlay() { overlay.style.display = 'none'; }
+
+let mouseX = canvas.width/2;
+
+document.addEventListener('mousemove', e => {
+  const rect = canvas.getBoundingClientRect();
+  mouseX = e.clientX - rect.left;
+});
+
+canvas.addEventListener('touchmove', e => {
+  e.preventDefault();
+  const rect = canvas.getBoundingClientRect();
+  mouseX = e.touches[0].clientX - rect.left;
+}, { passive: false });
+
+document.addEventListener('click', () => { if (state === 'playing' && !launched) { launched = true; ball.launch(); } });
+canvas.addEventListener('touchend', () => { if (state === 'playing' && !launched) { launched = true; ball.launch(); } });
+
+startBtn.addEventListener('click', e => {
+  e.stopPropagation();
+  state = 'playing';
+  hideOverlay();
+  initGame(true);
+  if (animId) cancelAnimationFrame(animId);
+  loop();
+});
+
+function drawBackground() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  // subtle scanlines
+  for (let y = 0; y < canvas.height; y += 4) {
+    ctx.fillStyle = 'rgba(0,0,0,0.08)';
+    ctx.fillRect(0, y, canvas.width, 2);
+  }
+}
+
+function loop() {
+  drawBackground();
+  updateParticles();
+
+  // Move paddle
+  if (state === 'playing') {
+    paddle.x += (mouseX - paddle.x) * 0.18;
+    paddle.x = Math.max(paddle.w/2, Math.min(canvas.width - paddle.w/2, paddle.x));
+  }
+
+  paddle.draw();
+  for (const b of bricks) b.draw();
+  checkBrickCollision();
+  const res = ball.update();
+  ball.draw();
+
+  if (res === 'dead') {
+    lives--;
+    updateLivesUI();
+    if (lives <= 0) {
+      if (score > best) { best = score; bestEl.textContent = best; }
+      state = 'gameover';
+      showOverlay('lose', 'GAME OVER');
+      return;
+    }
+    launched = false;
+    ball = Ball();
+  }
+
+  if (bricks.every(b => !b.alive)) {
+    level++;
+    levelEl.textContent = level;
+    initGame(false);
+  }
+
+  animId = requestAnimationFrame(loop);
+}
+
+window.addEventListener('resize', resize);
+resize();
+</script>
+</body>
+</html>
